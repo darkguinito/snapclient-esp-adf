@@ -5,6 +5,7 @@
 #include "audio_error.h"
 #include "audio_element.h"
 #include "esp_transport.h"
+#include "audio_hal.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -77,7 +78,7 @@ typedef struct {
  *
  * @return     The audio element handle
  */
-audio_element_handle_t snapclient_stream_init(snapclient_stream_cfg_t *config);
+audio_element_handle_t snapclient_stream_init(snapclient_stream_cfg_t *config, audio_hal_handle_t volume_handle);
 
 
 #ifdef __cplusplus

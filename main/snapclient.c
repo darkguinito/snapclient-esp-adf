@@ -25,6 +25,8 @@
 #include "i2s_stream.h"
 #include "snapclient_stream.h"
 #include "opus_decoder.h"
+#include "flac_decoder.h"
+#include "pcm_decoder.h"
 #include "filter_resample.h"
 
 #include "nvs_flash.h"
@@ -59,11 +61,36 @@ static void wait_for_sntp(void)
     }
 }
 
+int16_t Gain(int16_t s, int vol) {
+    int32_t v = 0;
+    v= (s * vol) >> 6;
+    return (int16_t)(v & 0xffff);
+}
+
+int mp3_music_volume(audio_element_handle_t el, char *buf, int len, TickType_t wait_time, void *ctx)
+{
+    size_t bytes_written = 0;
+    uint16_t test = 0;
+    int vol = 0; 
+    u_int16_t m_lastSample[1024];
+    audio_board_handle_t board_handle = (audio_board_handle_t)ctx;
+    audio_hal_get_volume(board_handle->audio_hal, &vol);
+    memset(m_lastSample, 0, len);
+   
+    for(size_t i = 1; i < len; i+=2 ){
+        test = (buf[i] << 8) + buf[i + 1];
+        m_lastSample[i/2] = Gain(test, vol);
+    }
+    i2s_write(0, m_lastSample, len, &bytes_written, portMAX_DELAY);  
+
+	return bytes_written;
+}
+
 
 void app_main(void)
 {
     audio_pipeline_handle_t pipeline;
-    audio_element_handle_t i2s_stream_writer, opus_decoder, snapclient_stream;
+    audio_element_handle_t i2s_stream_writer, pcm_decoder, /* opus_decoder, flac_decoder,*/ snapclient_stream;
 
 	// setup logging
     esp_log_level_set("*", ESP_LOG_INFO);
@@ -96,11 +123,23 @@ void app_main(void)
 	snapclient_cfg.port = CONFIG_SNAPSERVER_PORT;
 	snapclient_cfg.host = CONFIG_SNAPSERVER_HOST;
 	// TODO buff len & client name
-    snapclient_stream = snapclient_stream_init(&snapclient_cfg);
+    snapclient_stream = snapclient_stream_init(&snapclient_cfg, board_handle->audio_hal);
 
-    //ESP_LOGI(TAG, "[2.1] Create opus decoder");
-    //opus_decoder_cfg_t opus_cfg = DEFAULT_OPUS_DECODER_CONFIG();
-    //opus_decoder = decoder_opus_init(&opus_cfg);
+    // ESP_LOGI(TAG, "[2.1] Create opus decoder");
+    // opus_decoder_cfg_t opus_cfg = DEFAULT_OPUS_DECODER_CONFIG();
+    // opus_decoder = decoder_opus_init(&opus_cfg);
+
+    // ESP_LOGI(TAG, "[2.1] Create stack opus decoder");
+    // opus_decoder_cfg_t opus_cfg = DEFAULT_OPUS_DECODER_CONFIG();
+    // opus_decoder = decoder_opus_init(&opus_cfg);
+
+    // ESP_LOGI(TAG, "[2.1] Create flac decoder");
+    // flac_decoder_cfg_t flac_cfg = DEFAULT_FLAC_DECODER_CONFIG();
+    // flac_decoder = flac_decoder_init(&flac_cfg);
+
+    ESP_LOGI(TAG, "[2.1] Create pcm decoder");
+    pcm_decoder_cfg_t pcm_cfg = DEFAULT_PCM_DECODER_CONFIG();
+    pcm_decoder = pcm_decoder_init(&pcm_cfg);
 
     ESP_LOGI(TAG, "[2.2] Create i2s stream to write data to codec chip");
     i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
@@ -110,12 +149,15 @@ void app_main(void)
     ESP_LOGI(TAG, "[2.3] Register all elements to audio pipeline");
     audio_pipeline_register(pipeline, snapclient_stream, "snapclient");
     //audio_pipeline_register(pipeline, opus_decoder, "opus");
+    audio_pipeline_register(pipeline, pcm_decoder, "pcm");
     audio_pipeline_register(pipeline, i2s_stream_writer, "i2s");
+    audio_element_set_write_cb(i2s_stream_writer, mp3_music_volume, (void*)board_handle);
+    //audio_pipeline_register(pipeline, flac_decoder, "flac");
 
     ESP_LOGI(TAG, "[2.4] Link it together");
 
-    const char *link_tag[2] = {"snapclient", "i2s"};
-    audio_pipeline_link(pipeline, &link_tag[0], 2);
+    const char *link_tag[3] = {"snapclient", "pcm", "i2s"};
+    audio_pipeline_link(pipeline, &link_tag[0], 3);
 
     ESP_LOGI(TAG, "[ 3 ] Start and wait for Wi-Fi network");
     esp_periph_config_t periph_cfg = DEFAULT_ESP_PERIPH_SET_CONFIG();
@@ -126,16 +168,20 @@ void app_main(void)
     };
 
     esp_periph_handle_t wifi_handle = periph_wifi_init(&wifi_cfg);
-    ESP_LOGI(TAG, "[3.1] Start the Wi-Fi network");
     esp_periph_start(set, wifi_handle);
-    ESP_LOGI(TAG, "[3.2] wait for connection");
+    periph_wifi_wait_for_connected(wifi_handle, portMAX_DELAY);
 
-	while (1) {
-		esp_err_t result = periph_wifi_wait_for_connected(wifi_handle, 2000 / portTICK_PERIOD_MS);
-		if (result == ESP_OK)
-			break;
-		ESP_LOGW(TAG, "[3.2] still waiting for connection");
-	}
+    // esp_periph_handle_t wifi_handle = periph_wifi_init(&wifi_cfg);
+    // ESP_LOGI(TAG, "[3.1] Start the Wi-Fi network");
+    // esp_periph_start(set, wifi_handle);
+    // ESP_LOGI(TAG, "[3.2] wait for connection");
+
+	// while (1) {
+	// 	esp_err_t result = periph_wifi_wait_for_connected(wifi_handle, 2000 / portTICK_PERIOD_MS);
+	// 	if (result == ESP_OK)
+	// 		break;
+	// 	ESP_LOGW(TAG, "[3.2] still waiting for connection");
+	// }
 
 	// actually we don't really want to get not too big timestamps
 	// wait_for_sntp();
@@ -190,8 +236,8 @@ void app_main(void)
         }
 		//if (msg.source == (void *) opus_decoder)
 		//	sprintf(source, "%s", "opus");
-		//else
-		if (msg.source == (void *) snapclient_stream)
+		//else 
+        if (msg.source == (void *) snapclient_stream)
 			sprintf(source, "%s", "snapclient");
 		else if (msg.source == (void *) i2s_stream_writer)
 			sprintf(source, "%s", "i2s");
@@ -273,8 +319,7 @@ void app_main(void)
 
             i2s_stream_set_clk(i2s_stream_writer, music_info.sample_rates , music_info.bits, music_info.channels);
             continue;
-        }
-		/*
+        }/*
         if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.source == (void *) opus_decoder
             && msg.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
 			ESP_LOGI(TAG, "[ X ] opus message ");
@@ -288,8 +333,7 @@ void app_main(void)
 
             i2s_stream_set_clk(i2s_stream_writer, music_info.sample_rates , music_info.bits, music_info.channels);
             continue;
-        }
-		*/
+        }*/
         /* Stop when the last pipeline element (i2s_stream_writer in this case) receives stop event */
         if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.source == (void *) i2s_stream_writer
             && msg.cmd == AEL_MSG_CMD_REPORT_STATUS

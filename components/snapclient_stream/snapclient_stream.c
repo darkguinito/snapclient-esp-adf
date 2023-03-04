@@ -13,8 +13,9 @@
 #include "freertos/task.h"
 
 static const char *TAG = "SNAPCLIENT_STREAM";
-#define CONNECT_TIMEOUT_MS        100
+#define CONNECT_TIMEOUT_MS        500
 
+static audio_hal_handle_t s_volume_handle;
 
 typedef struct snapclient_stream {
     esp_transport_handle_t        t;
@@ -40,6 +41,7 @@ typedef struct snapclient_stream {
 
 static snapclient_stream_t *snapclient = NULL;
 static TimerHandle_t        send_time_tm_handle;
+
 static void send_time_timer_cb(TimerHandle_t xTimer)
 {
     ESP_LOGD(TAG, "Send time cb");
@@ -141,10 +143,17 @@ static esp_err_t _snapclient_open(audio_element_handle_t self)
     ESP_LOGI(TAG, "Host is %s, port is %d\n", snapclient->host, snapclient->port);
 
     esp_transport_handle_t t = esp_transport_tcp_init();
+
+    esp_transport_list_handle_t transport_list = esp_transport_list_init();
+    esp_transport_list_add(transport_list, t, "http");
+
     AUDIO_NULL_CHECK(TAG, t, return ESP_FAIL);
+
     snapclient->sock = esp_transport_connect(t, snapclient->host, snapclient->port, CONNECT_TIMEOUT_MS);
     if (snapclient->sock < 0) {
         _get_socket_error_code_reason("TCP create",  snapclient->sock);
+        esp_transport_destroy(t);
+        esp_transport_list_destroy(transport_list);
         return ESP_FAIL;
     }
 
@@ -191,7 +200,7 @@ static esp_err_t _snapclient_open(audio_element_handle_t self)
 		SNAPCLIENT_STREAM_CLIENT_NAME,  // hostname
 		"0.0.2",               // client version
 		"libsnapcast",         // client name
-		"esp32",               // os name
+		"esp32_d",               // os name
 		"xtensa",              // arch
 		1,                     // instance
 		mac_address,           // id
@@ -381,9 +390,7 @@ static esp_err_t _snapclient_process(audio_element_handle_t self, char *in_buffe
 				ESP_LOGI(TAG, "SNAPCAST_MESSAGE_CODEC_HEADER (size=%d/%d)", message_size, r_size);
 				snapclient->base_message.type = SNAPCAST_MESSAGE_BASE;
 
-				result = codec_header_message_deserialize(
-					&(snapclient->codec_header_message),
-					in_buffer, snapclient->base_message.size);
+				result = codec_header_message_deserialize(&(snapclient->codec_header_message), in_buffer, snapclient->base_message.size);
 
 				if (result) {
 					ESP_LOGI(TAG, "Failed to read codec header: %d\r\n", result);
@@ -395,8 +402,8 @@ static esp_err_t _snapclient_process(audio_element_handle_t self, char *in_buffe
 				esp_codec_type_t codec;
 				size = snapclient->codec_header_message.size;
 				start = snapclient->codec_header_message.payload;
-				ESP_LOGI(TAG, "Codec: %s , Size: %d",
-						 snapclient->codec_header_message.codec, size);
+				ESP_LOGI(TAG, "Codec: %s , Size: %d", snapclient->codec_header_message.codec, size);
+
 				if (strcmp(snapclient->codec_header_message.codec, "opus") == 0) {
 					codec = ESP_CODEC_TYPE_OPUS;
 				} else if (strcmp(snapclient->codec_header_message.codec, "flac") == 0) {
@@ -407,18 +414,17 @@ static esp_err_t _snapclient_process(audio_element_handle_t self, char *in_buffe
 					codec = ESP_CODEC_TYPE_OGG;
 				} else
 				{
-					ESP_LOGI(TAG, "Codec : %s not supported",
-							 snapclient->codec_header_message.codec);
+					ESP_LOGI(TAG, "Codec : %s not supported", snapclient->codec_header_message.codec);
 					ESP_LOGI(TAG, "Change encoder codec to opus in /etc/snapserver.conf on server");
 					break;
 				}
 				audio_element_set_codec_fmt(self, codec);
 
-				uint32_t rate;
+				uint32_t rate = 0;
 				memcpy(&rate, start+4, sizeof(rate));
-				uint16_t bits;
+				uint16_t bits = 0;
 				memcpy(&bits, start+8, sizeof(bits));
-				uint16_t channels;
+				uint16_t channels = 0;
 				memcpy(&channels, start+10, sizeof(channels));
 				ESP_LOGI(TAG, "sampleformat: %d:%d:%d\n", rate, bits, channels);
 
@@ -505,7 +511,7 @@ static esp_err_t _snapclient_process(audio_element_handle_t self, char *in_buffe
 				*/
 
 				// Volume setting using ADF HAL abstraction
-				//audio_hal_set_volume(board_handle->audio_hal,server_settings_message.volume);
+				audio_hal_set_volume(s_volume_handle, snapclient->server_settings_message.volume);
 				// move this implemntation to a Merus Audio hal
 				//uint8_t cmd[4];
 				//cmd[0] = 128-server_settings_message.volume  ;
@@ -613,13 +619,14 @@ static esp_err_t _snapclient_destroy(audio_element_handle_t self)
     return ESP_OK;
 }
 
-audio_element_handle_t snapclient_stream_init(snapclient_stream_cfg_t *config)
+audio_element_handle_t snapclient_stream_init(snapclient_stream_cfg_t *config, audio_hal_handle_t volume_handle)
 {
 	AUDIO_NULL_CHECK(TAG, config, return NULL);
 	ESP_LOGI(TAG, "snapclient_stream_init");
 
 	audio_element_cfg_t cfg = DEFAULT_AUDIO_ELEMENT_CONFIG();
 	audio_element_handle_t el;
+	s_volume_handle = (audio_hal_handle_t) volume_handle;
     cfg.open = _snapclient_open;
     cfg.close = _snapclient_close;
     cfg.process = _snapclient_process;
