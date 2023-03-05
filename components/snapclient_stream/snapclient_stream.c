@@ -4,7 +4,10 @@
 #include "esp_transport_tcp.h"
 #include "audio_mem.h"
 #include "snapclient_stream.h"
-#include "snapcast.h"
+#include "hello.h"
+#include "codec_header.h"
+#include "wire_chunk.h"
+#include "server_settings.h"
 #include "audio_element.h"
 #include "ringbuf.h"
 
@@ -18,24 +21,24 @@ static const char *TAG = "SNAPCLIENT_STREAM";
 static audio_hal_handle_t s_volume_handle;
 
 typedef struct snapclient_stream {
-    esp_transport_handle_t        t;
-    audio_stream_type_t           type;
-    int                           sock;
-    int                           port;
-    char                          *host;
-    bool                          is_open;
-    int                           timeout_ms;
-    snapclient_stream_event_handle_cb    hook;
-    void                          *ctx;
-	// snapclient structures; we keep one message struct of each type
-	bool  received_header;
-	struct timeval last_sync;
-	int id_counter;
-	base_message_t base_message;
-	codec_header_message_t codec_header_message;
-	wire_chunk_message_t wire_chunk_message;
-	server_settings_message_t server_settings_message;
-	time_message_t time_message;
+    esp_transport_handle_t            t;
+    audio_stream_type_t               type;
+    int                               sock;
+    int                               port;
+    char                              *host;
+    bool                              is_open;
+    int                               timeout_ms;
+    snapclient_stream_event_handle_cb hook;
+    void                              *ctx;
+	
+	bool                              received_header;
+	struct timeval                    last_sync;
+	int                               id_counter;
+	base_message_t                    base_message;
+	codec_header_message_t            codec_header_message;
+	wire_chunk_message_t              wire_chunk_message;
+	server_settings_message_t         server_settings_message;
+	time_message_t                    time_message;
 
 } snapclient_stream_t;
 
@@ -118,10 +121,10 @@ static esp_err_t _dispatch_event(audio_element_handle_t el, snapclient_stream_t 
 {
     if (el && snapclient && snapclient->hook) {
         snapclient_stream_event_msg_t msg = { 0 };
-        msg.data = data;
+        msg.data     = data;
         msg.data_len = len;
-        msg.sock_fd = snapclient->t;
-        msg.source = el;
+        msg.sock_fd  = snapclient->t;
+        msg.source   = el;
         return snapclient->hook(&msg, state, snapclient->ctx);
     }
     return ESP_FAIL;
@@ -171,10 +174,10 @@ static esp_err_t _snapclient_open(audio_element_handle_t self)
 	snapclient->time_message.latency.sec = 0;
 	snapclient->time_message.latency.usec = 0;
 
-
 	char mac_address[18];
     uint8_t base_mac[6];
     // Get MAC address for WiFi station
+
     esp_read_mac(base_mac, ESP_MAC_WIFI_STA);
     sprintf(mac_address,
 			"%02X:%02X:%02X:%02X:%02X:%02X",
@@ -197,32 +200,28 @@ static esp_err_t _snapclient_open(audio_element_handle_t self)
 
 	hello_message_t hello_message = {
 		mac_address,
-		SNAPCLIENT_STREAM_CLIENT_NAME,  // hostname
-		"0.0.2",               // client version
-		"libsnapcast",         // client name
-		"esp32_d",               // os name
-		"xtensa",              // arch
-		1,                     // instance
-		mac_address,           // id
-		2,                     // protocol version
+		SNAPCLIENT_STREAM_CLIENT_NAME, // hostname
+		"0.0.2",                       // client version
+		"libsnapcast",                 // client name
+		"esp32_d",                     // os name
+		"xtensa",                      // arch
+		1,                             // instance
+		mac_address,                   // id
+		2,                             // protocol version
 	};
 
     char base_message_serialized[BASE_MESSAGE_SIZE];
     char *hello_message_serialized;
 
-	// serialize the hello message putting the computed size in
-	// base_messge.size
-	hello_message_serialized = hello_message_serialize(
-		&hello_message, (size_t*) &(base_message.size));
+	// serialize the hello message putting the computed size in base_messge.size
+	hello_message_serialized = hello_message_serialize(&hello_message, &(base_message.size));
+
 	if (!hello_message_serialized) {
 		ESP_LOGI(TAG, "Failed to serialize hello message\r\b");
 		return ESP_FAIL;
 	}
 
-	result = base_message_serialize(
-		&base_message,
-		base_message_serialized,
-		BASE_MESSAGE_SIZE);
+	result = base_message_serialize(&base_message, base_message_serialized, BASE_MESSAGE_SIZE);
 
 	if (result) {
 		ESP_LOGI(TAG, "Failed to serialize base message\r\n");
@@ -420,24 +419,22 @@ static esp_err_t _snapclient_process(audio_element_handle_t self, char *in_buffe
 				}
 				audio_element_set_codec_fmt(self, codec);
 
-				uint32_t rate = 0;
-				memcpy(&rate, start+4, sizeof(rate));
-				uint16_t bits = 0;
-				memcpy(&bits, start+8, sizeof(bits));
-				uint16_t channels = 0;
-				memcpy(&channels, start+10, sizeof(channels));
-				ESP_LOGI(TAG, "sampleformat: %d:%d:%d\n", rate, bits, channels);
+				sample_t sampleFormat = {0, 0, 0, 0, 0};
+				result = sample_format_message_deserialize(&sampleFormat, start, sizeof(sample_t));
+
+				ESP_LOGI(TAG, "sampleformat: %d:%d:%d\n", sampleFormat.rate, sampleFormat.bits, sampleFormat.channels);
 
 				snapclient->received_header = true;
 				codec_header_message_free(&(snapclient->codec_header_message));
 
-				break;
+				//break;
 				// notify the codec infos
-				audio_element_info_t snap_info = {0};
+				// sample_t sampleFormat = {0, 0, 0, 0, 0};
+				//audio_element_info_t snap_info = {0};
 				audio_element_getinfo(self, &snap_info);
-				snap_info.sample_rates = rate;
-				snap_info.bits = bits;
-				snap_info.channels = channels;
+				snap_info.sample_rates = sampleFormat.rate_;
+				snap_info.bits = sampleFormat.bits_;
+				snap_info.channels = sampleFormat.channels_;
 				audio_element_setinfo(self, &snap_info);
 				audio_element_report_info(self);
 
@@ -566,7 +563,8 @@ static esp_err_t _snapclient_process(audio_element_handle_t self, char *in_buffe
 				// time_message.latency == client to server latency(c2s)
 				// TODO the fact that I have to do this simple conversion means
 				// I should probably use the timeval struct instead of my own
-				struct timeval s2c, c2s;
+				struct timeval s2c = { 0, 0 };
+				struct timeval c2s = { 0, 0 };
 				tv1.tv_sec = snapclient->base_message.received.sec;
 				tv1.tv_usec = snapclient->base_message.received.usec;
 				tv3.tv_sec = snapclient->base_message.sent.sec;
@@ -587,7 +585,7 @@ static esp_err_t _snapclient_process(audio_element_handle_t self, char *in_buffe
 				*/
 				break;
 
-			case SNAPCAST_MESSAGE_STREAM_TAGS:
+			case SNAPCAST_MESSAGE_CLIENT_INFO:
 				ESP_LOGI(TAG, "SNAPCAST_MESSAGE_STREAM_TAGS (size=%d/%d) [IGNORED]", message_size, r_size);
 				snapclient->base_message.type = SNAPCAST_MESSAGE_BASE;
 				break;
@@ -640,16 +638,15 @@ audio_element_handle_t snapclient_stream_init(snapclient_stream_cfg_t *config, a
     cfg.tag = "snapclient_client";
 
 	cfg.buffer_len = SNAPCLIENT_STREAM_BUF_SIZE;
-
-	snapclient_stream_t *snapclient = audio_calloc(1, sizeof(snapclient_stream_t));
-    AUDIO_MEM_CHECK(TAG, snapclient, return NULL);
-
 	if (config->type == AUDIO_STREAM_READER) {
         cfg.read = _snapclient_read;
     } else if (config->type == AUDIO_STREAM_WRITER) {
         ESP_LOGE(TAG, "No writer for snapclient stream");
         goto _snapclient_init_exit;
     }
+
+	snapclient_stream_t *snapclient = audio_calloc(1, sizeof(snapclient_stream_t));
+    AUDIO_MEM_CHECK(TAG, snapclient, return NULL);
 
     snapclient->port = config->port;
     snapclient->host = config->host;
@@ -663,15 +660,15 @@ audio_element_handle_t snapclient_stream_init(snapclient_stream_cfg_t *config, a
     }
 
     el = audio_element_init(&cfg);
-    AUDIO_MEM_CHECK(TAG, el, goto _snapclient_init_exit);
+    AUDIO_MEM_CHECK(TAG, el, goto _snapclient_init_ini_exit);
     audio_element_setdata(el, snapclient);
 
 	ESP_LOGI(TAG, "snapclient_stream_init OK");
 
     return el;
 
-_snapclient_init_exit:
+_snapclient_init_ini_exit:
     audio_free(snapclient);
+_snapclient_init_exit:
     return NULL;
-
 }
