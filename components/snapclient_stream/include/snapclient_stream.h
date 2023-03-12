@@ -6,6 +6,7 @@
 #include "audio_element.h"
 #include "esp_transport.h"
 #include "audio_hal.h"
+#include "client_settings.h"
 
 typedef enum {
     SNAPCLIENT_STREAM_STATE_NONE,
@@ -38,6 +39,7 @@ typedef struct {
     int                                task_prio;          /*!< Task priority (based on freeRTOS priority) */
     bool                               ext_stack;          /*!< Allocate stack on extern ram */
     snapclient_stream_event_handle_cb  event_handler;      /*!< snapclient stream event callback*/
+    player_t                           player;             /*!< Player settings */
     void                               *event_ctx;         /*!< User context*/
 } snapclient_stream_cfg_t;
 

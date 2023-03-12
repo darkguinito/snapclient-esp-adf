@@ -1,42 +1,33 @@
 #include "message.h"
 
-#include <buffer.h>
+#include <string.h>
+#include "esp_log.h"
 
 const int BASE_MESSAGE_SIZE = 26;
 const int TIME_MESSAGE_SIZE = 8;
 
-int base_message_serialize(base_message_t *msg, char *data, uint32_t size) {
-    write_buffer_t buffer;
-    int result = 0;
+static const char *TAG = "SNAPCLIENT_BASE_MESSAGE";
 
-    buffer_write_init(&buffer, data, size);
-
-    result |= buffer_write_uint16(&buffer, msg->type);
-    result |= buffer_write_uint16(&buffer, msg->id);
-    result |= buffer_write_uint16(&buffer, msg->refersTo);
-    result |= buffer_write_int32(&buffer, msg->sent.sec);
-    result |= buffer_write_int32(&buffer, msg->sent.usec);
-    result |= buffer_write_int32(&buffer, msg->received.sec);
-    result |= buffer_write_int32(&buffer, msg->received.usec);
-    result |= buffer_write_uint32(&buffer, msg->size);
-
-    return result;
+int base_message_serialize(base_message_t *msg, char *data) {
+    memcpy(data, msg, sizeof(base_message_t));
+    return 0;
 }
 
-int base_message_deserialize(base_message_t *msg, const char *data, uint32_t size) {
-    read_buffer_t buffer;
-    int result = 0;
+int base_message_deserialize(base_message_t *msg, const char *data) {
+    memcpy(msg, data, sizeof(base_message_t));
+    return 0;
+}
 
-    buffer_read_init(&buffer, data, size);
 
-    result |= buffer_read_uint16(&buffer, &(msg->type));
-    result |= buffer_read_uint16(&buffer, &(msg->id));
-    result |= buffer_read_uint16(&buffer, &(msg->refersTo));
-    result |= buffer_read_int32 (&buffer, &(msg->sent.sec));
-    result |= buffer_read_int32 (&buffer, &(msg->sent.usec));
-    result |= buffer_read_int32 (&buffer, &(msg->received.sec));
-    result |= buffer_read_int32 (&buffer, &(msg->received.usec));
-    result |= buffer_read_uint32(&buffer, &(msg->size));
-
-    return result;
+void print_base_message(const base_message_t* msg){
+    ESP_LOGI(TAG, "msg: { type: %d, id: %d, refersTo: %d;, sent: { sec: %d, usec: %d }, received: { sec: %d, usec: %d }, size: %d }\n", 
+        msg->type, 
+        msg->id,
+        msg->refersTo,
+        msg->sent.sec,
+        msg->sent.usec,
+        msg->received.sec,
+        msg->received.usec,
+        msg->size
+    );
 }

@@ -7,7 +7,7 @@
 extern const int BASE_MESSAGE_SIZE;
 extern const int TIME_MESSAGE_SIZE;
 
-enum message_type {
+typedef enum {
     SNAPCAST_MESSAGE_BASE            = 0,
     SNAPCAST_MESSAGE_CODEC_HEADER    = 1,
     SNAPCAST_MESSAGE_WIRE_CHUNK      = 2,
@@ -19,14 +19,14 @@ enum message_type {
 
     SNAPCAST_MESSAGE_FIRST           = SNAPCAST_MESSAGE_BASE,
     SNAPCAST_MESSAGE_LAST            = SNAPCAST_MESSAGE_CLIENT_INFO
-};
+} message_type_t;
 
 typedef struct tv {
     int32_t sec;
     int32_t usec;
 } tv_t;
 
-typedef struct base_message {
+typedef struct __attribute__((__packed__))   base_message {
     uint16_t type;
     uint16_t id;
     uint16_t refersTo;
@@ -35,7 +35,11 @@ typedef struct base_message {
     size_t   size;
 } base_message_t;
 
-int base_message_serialize  (base_message_t *msg, char *data,       uint32_t size);
-int base_message_deserialize(base_message_t *msg, const char *data, uint32_t size);
+//const size_t max_size = 1000000;
+
+int base_message_serialize  (base_message_t *msg,       char *data);
+int base_message_deserialize(base_message_t *msg, const char *data);
+
+void print_base_message(const base_message_t* msg);
 
 #endif // __SNAPCAST_MESSAGE_H__

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "message.h"
 
 
 /* Sample Hello message
@@ -30,6 +31,19 @@ typedef struct hello_message {
     char *id;
     int  protocol_version;
 } hello_message_t;
+
+typedef struct __attribute__((__packed__)) hello_message_full {
+    base_message_t base;
+    char                *mac;
+    char                *hostname;
+    char                *version;
+    char                *client_name;
+    char                *os;
+    char                *arch;
+    int                 instance;
+    char                *id;
+    int                 protocol_version;
+} hello_message_full_t;
 
 
 char* hello_message_serialize(hello_message_t* msg, size_t *size);

@@ -66,7 +66,9 @@ int mp3_music_volume(audio_element_handle_t el, char *buf, int len, TickType_t w
 void app_main(void)
 {
     audio_pipeline_handle_t pipeline;
-    audio_element_handle_t i2s_stream_writer, pcm_decoder, snapclient_stream;
+    audio_element_handle_t i2s_stream_writer;
+    //audio_element_handle_t pcm_decoder;
+    audio_element_handle_t snapclient_stream;
 
 	// setup logging
     esp_log_level_set("*", ESP_LOG_INFO);
@@ -93,14 +95,15 @@ void app_main(void)
 
     ESP_LOGI(TAG, "[2.0] Create snapclient source stream");
     snapclient_stream_cfg_t snapclient_cfg = SNAPCLIENT_STREAM_CFG_DEFAULT();
-	snapclient_cfg.port = CONFIG_SNAPSERVER_PORT;
-	snapclient_cfg.host = CONFIG_SNAPSERVER_HOST;
+	snapclient_cfg.port   = CONFIG_SNAPSERVER_PORT;
+	snapclient_cfg.host   = CONFIG_SNAPSERVER_HOST;
+	snapclient_cfg.player.latency = 20;
     snapclient_stream = snapclient_stream_init(&snapclient_cfg, board_handle->audio_hal);
 
 
     ESP_LOGI(TAG, "[2.1] Create pcm decoder");
-    pcm_decoder_cfg_t pcm_cfg = DEFAULT_PCM_DECODER_CONFIG();
-    pcm_decoder = pcm_decoder_init(&pcm_cfg);
+   // pcm_decoder_cfg_t pcm_cfg = DEFAULT_PCM_DECODER_CONFIG();
+   // pcm_decoder = pcm_decoder_init(&pcm_cfg);
 
     ESP_LOGI(TAG, "[2.2] Create i2s stream to write data to codec chip");
     i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
@@ -109,14 +112,14 @@ void app_main(void)
 
     ESP_LOGI(TAG, "[2.3] Register all elements to audio pipeline");
     audio_pipeline_register(pipeline, snapclient_stream, "snapclient");
-    audio_pipeline_register(pipeline, pcm_decoder, "pcm");
+    //audio_pipeline_register(pipeline, pcm_decoder, "pcm");
     audio_pipeline_register(pipeline, i2s_stream_writer, "i2s");
     audio_element_set_write_cb(i2s_stream_writer, mp3_music_volume, (void*)board_handle);
 
     ESP_LOGI(TAG, "[2.4] Link it together");
 
-    const char *link_tag[3] = {"snapclient", "pcm", "i2s"};
-    audio_pipeline_link(pipeline, &link_tag[0], 3);
+    const char *link_tag[2] = {"snapclient", "i2s"};
+    audio_pipeline_link(pipeline, &link_tag[0], 2);
 
     ESP_LOGI(TAG, "[ 3 ] Start and wait for Wi-Fi network");
     esp_periph_config_t periph_cfg = DEFAULT_ESP_PERIPH_SET_CONFIG();
@@ -150,7 +153,7 @@ void app_main(void)
     ESP_LOGI(TAG, "[ 5 ] Start audio_pipeline");
     audio_pipeline_run(pipeline);
 
-	i2s_stream_set_clk(i2s_stream_writer, 48000 , 16, 2);
+	i2s_stream_set_clk(i2s_stream_writer, 44100 , 16, 2);
 
     while (1) {
 		char source[20];

@@ -3,13 +3,15 @@
 #include <buffer.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "esp_log.h"
 
-int sample_format_message_deserialize(sample_t *msg, const char *data, uint32_t size) {
+static const char *TAG = "SNAPCLIENT_SAMPLE_FORMAT";
+
+int sample_format_message_deserialize(sample_t *msg, const char *data) {
     read_buffer_t buffer;
-    size_t        s_string;
     int           result = 0;
 
-    buffer_read_init(&buffer, data, size);
+    buffer_read_init(&buffer, data, sizeof(sample_t));
 
     result |= buffer_read_uint16(&buffer, &(msg->sample_size_));
     if (result) return 1;
@@ -37,3 +39,13 @@ int sample_format_message_deserialize(sample_t *msg, const char *data, uint32_t 
 // {
 
 // }
+
+void print_sample_format(const sample_t* format){
+    ESP_LOGI(TAG, "format: { sample_size: %d, frame_size: %d, rate: %d, bits: %d, channels: %d }\n", 
+      format->sample_size_,
+      format->frame_size_,
+      format->rate_,
+      format->bits_,
+      format->channels_
+    );
+}

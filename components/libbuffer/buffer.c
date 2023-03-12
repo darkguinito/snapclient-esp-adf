@@ -163,3 +163,37 @@ int buffer_write_int8(write_buffer_t *buffer, int8_t data) {
     buffer->buffer[buffer->index++] = data & 0xff;
     return 0;
 }
+
+uint16_t read_uint16(char *src) {
+    return (*src & 0xff) + ((*src & 0xff) << 8);
+}
+
+uint32_t read_uint32(char *src) {
+    return (uint32_t)read_int32((char*)src);
+}
+
+int32_t read_int32(char *src) {
+    return (*src & 0xff) + ((*src >> 8) & 0xff) + ((*src >> 16) & 0xff) + ((*src >> 24) & 0xff);
+}
+
+int write_uint16(char *src, uint16_t value) {
+    src[0] = value & 0xff;
+    src[1] = (value >> 8) & 0xff;
+    return 0;
+}
+
+int write_uint32(char *src, uint32_t value) {
+    src[0] = value & 0xff;
+    src[1] = (value >> 8) & 0xff;
+    src[2] = (value >> 16) & 0xff;
+    src[3] = (value >> 24) & 0xff;
+    return 0;
+}
+
+int write_int32(char *src, int32_t value) {
+    src[0] = value & 0xff;
+    src[1] = (value >> 8) & 0xff;
+    src[2] = (value >> 16) & 0xff;
+    src[3] = (value >> 24) & 0xff;
+    return 0;
+}

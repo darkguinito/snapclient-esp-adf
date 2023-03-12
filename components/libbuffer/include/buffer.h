@@ -164,5 +164,12 @@ int buffer_read_int8(read_buffer_t *buffer, int8_t *data);
 */
 int buffer_write_int8(write_buffer_t *buffer, int8_t data);
 
+uint16_t read_uint16(char *src);
+uint32_t read_uint32(char *src);
+int32_t read_int32(char *src);
+
+int write_uint16(char *src, uint16_t value);
+int write_uint32(char *src, uint32_t value);
+int write_int32 (char *src, int32_t value);
 
 #endif // __BUFFER_H__

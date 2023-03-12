@@ -1,9 +1,10 @@
-#ifndef _SNAPCAST_SERVER_SETTINGS_H_
-#define _SNAPCAST_SERVER_SETTINGS_H_
+#ifndef __SNAPCAST_SERVER_SETTINGS_H__
+#define __SNAPCAST_SERVER_SETTINGS_H__
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "message.h"
 
 typedef struct server_settings_message {
     int32_t  buffer_ms;
@@ -12,6 +13,17 @@ typedef struct server_settings_message {
     bool     muted;
 } server_settings_message_t;
 
-int server_settings_message_deserialize(server_settings_message_t *msg, const char *json_str);
+typedef struct __attribute__((__packed__)) server_settings_message_full {
+    base_message_t base;
+    int32_t        buffer_ms;
+    int32_t        latency;
+    uint32_t       volume;
+    bool           muted;
+} server_settings_message_full_t;
 
-#endif _SNAPCAST_SERVER_SETTINGS_H_
+int server_settings_message_deserialize     (server_settings_message_t      *msg, const char *json_str);
+int server_settings_message_full_deserialize(server_settings_message_full_t *msg, const char *json_str);
+
+void print_settings_message(const server_settings_message_full_t* msg);
+
+#endif // __SNAPCAST_SERVER_SETTINGS_H__
