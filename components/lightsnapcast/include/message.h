@@ -36,8 +36,6 @@ typedef struct __attribute__((__packed__)) base_message {
 } base_message_t;
 
 
-//const size_t max_size = 1000000;
-
 int base_message_serialize  (base_message_t *msg,       char *data);
 int base_message_deserialize(base_message_t *msg, const char *data);
 

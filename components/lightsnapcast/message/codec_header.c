@@ -9,9 +9,6 @@
 
 static const char *TAG = "SNAPCLIENT_CODEC_HEADER";
 
-void codec_header_message_full_free(codec_header_message_full_t *msg) {
-}
-
 int codec_header_message_full_deserialize(codec_header_message_full_t *msg, const char *data) {
     uint32_t offset = 0;
 

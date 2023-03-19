@@ -7,13 +7,6 @@
 
 static const char *TAG = "SNAPCLIENT_WIRE_CHUNK";
 
-void wire_chunk_message_free(wire_chunk_message_t *msg) {
-    if (msg->payload != NULL) {
-        free(msg->payload);
-        msg->payload = NULL;
-    }
-}
-
 int wire_chunk_message_full_deserialize(wire_chunk_message_full_t *msg, const char *data) {
     memcpy(&(msg->timestamp), data, msg->size + sizeof(tv_t) + sizeof(uint32_t));
     msg->payload = data + sizeof(tv_t) + sizeof(uint32_t);
@@ -29,7 +22,6 @@ void print_wire_chunk(const wire_chunk_message_full_t* msg){
       msg->payload
     );
 }
-
 
 void process_wire(wire_chunk_message_full_t* chunk, audio_element_handle_t self){
     size_t w_size = audio_element_output(self, chunk->payload, chunk->size);

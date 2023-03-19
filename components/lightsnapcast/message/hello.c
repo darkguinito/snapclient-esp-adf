@@ -1,12 +1,6 @@
 #include "hello.h"
 
-//#ifdef ESP_PLATFORM
-// The ESP-IDF changes the include directory for cJSON
 #include <cJSON.h>
-//#else
-//#include "json/cJSON.h"
-//#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

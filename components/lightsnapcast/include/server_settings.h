@@ -25,8 +25,8 @@ typedef struct __attribute__((__packed__)) server_settings_message_full {
 
 int server_settings_message_deserialize     (server_settings_message_t      *msg, const char *json_str);
 int server_settings_message_full_deserialize(server_settings_message_full_t *msg, char *json_str);
-
 void print_settings_message(const server_settings_message_full_t* msg);
+
 void process_server(server_settings_message_full_t* server, audio_element_handle_t self, audio_hal_handle_t s_volume_handle);
 
 #endif // __SNAPCAST_SERVER_SETTINGS_H__

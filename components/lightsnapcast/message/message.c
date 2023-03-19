@@ -18,7 +18,6 @@ int base_message_deserialize(base_message_t *msg, const char *data) {
     return 0;
 }
 
-
 void print_base_message(const base_message_t* msg){
     ESP_LOGI(TAG, "msg: { type: %d, id: %d, refersTo: %d, sent: { sec: %d, usec: %d }, received: { sec: %d, usec: %d }, size: %d }\n", 
         msg->type, 

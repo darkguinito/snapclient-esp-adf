@@ -1,8 +1,5 @@
 #include "sample_format.h"
 
-// #include <buffer.h>
-// #include <stdio.h>
-// #include <stdlib.h>
 #include "esp_log.h"
 #include <string.h>
 

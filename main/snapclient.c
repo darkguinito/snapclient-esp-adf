@@ -9,10 +9,6 @@
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/event_groups.h"
-
-#include "lwip/err.h"
-#include "lwip/apps/sntp.h"
 
 #include "esp_log.h"
 #include "esp_wifi.h"
@@ -22,12 +18,9 @@
 #include "audio_event_iface.h"
 #include "audio_mem.h"
 #include "audio_common.h"
+
 #include "i2s_stream.h"
 #include "snapclient_stream.h"
-#include "opus_decoder.h"
-#include "flac_decoder.h"
-#include "pcm_decoder.h"
-#include "filter_resample.h"
 
 #include "nvs_flash.h"
 
@@ -62,12 +55,10 @@ int mp3_music_volume(audio_element_handle_t el, char *buf, int len, TickType_t w
 	return bytes_written;
 }
 
-
 void app_main(void)
 {
     audio_pipeline_handle_t pipeline;
     audio_element_handle_t i2s_stream_writer;
-    //audio_element_handle_t pcm_decoder;
     audio_element_handle_t snapclient_stream;
 
 	// setup logging
@@ -101,10 +92,6 @@ void app_main(void)
     snapclient_stream = snapclient_stream_init(&snapclient_cfg, board_handle->audio_hal);
 
 
-    //ESP_LOGI(TAG, "[2.1] Create pcm decoder");
-   // pcm_decoder_cfg_t pcm_cfg = DEFAULT_PCM_DECODER_CONFIG();
-   // pcm_decoder = pcm_decoder_init(&pcm_cfg);
-
     ESP_LOGI(TAG, "[2.2] Create i2s stream to write data to codec chip");
     i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
     i2s_cfg.type = AUDIO_STREAM_WRITER;
@@ -112,7 +99,6 @@ void app_main(void)
 
     ESP_LOGI(TAG, "[2.3] Register all elements to audio pipeline");
     audio_pipeline_register(pipeline, snapclient_stream, "snapclient");
-    //audio_pipeline_register(pipeline, pcm_decoder, "pcm");
     audio_pipeline_register(pipeline, i2s_stream_writer, "i2s");
     audio_element_set_write_cb(i2s_stream_writer, mp3_music_volume, (void*)board_handle);
 
@@ -254,7 +240,6 @@ void app_main(void)
             && msg.cmd == AEL_MSG_CMD_REPORT_STATUS
             && (((int)msg.data == AEL_STATUS_STATE_STOPPED) || ((int)msg.data == AEL_STATUS_STATE_FINISHED))) {
 			ESP_LOGI(TAG, "[ X ] i2s wants to stop!");
-
             //break;
         }
     }

@@ -79,7 +79,6 @@ void process_server(server_settings_message_full_t* server_settings_message, aud
 
     // Not sure it is used somewhere ? 
     audio_element_getinfo(self, &snap_info);
-//
     snap_info.sample_rates = sampleFormat.rate_;
     snap_info.bits         = sampleFormat.bits_;
     snap_info.channels     = sampleFormat.channels_;
