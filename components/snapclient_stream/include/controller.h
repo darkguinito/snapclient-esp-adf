@@ -6,7 +6,7 @@
 #include "audio_element.h"
 #include "message.h"
 
-void controller_getNextMessage(audio_element_handle_t self, const base_message_t* base, audio_hal_handle_t s_volume_handle);
+void controller_getNextMessage(audio_element_handle_t self, const char* base, message_type_t type, audio_hal_handle_t s_volume_handle);
 
 char* get_message_type(message_type_t type);
 

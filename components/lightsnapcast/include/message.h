@@ -26,7 +26,7 @@ typedef struct tv {
     int32_t usec;
 } tv_t;
 
-typedef struct __attribute__((__packed__))   base_message {
+typedef struct __attribute__((__packed__)) base_message {
     uint16_t type;
     uint16_t id;
     uint16_t refersTo;
@@ -34,6 +34,7 @@ typedef struct __attribute__((__packed__))   base_message {
     tv_t     received;
     size_t   size;
 } base_message_t;
+
 
 //const size_t max_size = 1000000;
 

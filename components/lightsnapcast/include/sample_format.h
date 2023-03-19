@@ -3,11 +3,13 @@
 
 #include <stdint.h>
 
-typedef struct sample_s{
-    uint16_t sample_size_;
-    uint16_t frame_size_;
-    uint32_t rate_;
+
+typedef struct __attribute__((__packed__)) sample_s{
     uint16_t bits_;
+    uint16_t audio_format;
+    uint32_t byte_rate;
+    uint32_t rate_;
+    uint16_t block_align;
     uint16_t channels_;
 } sample_t;
 

@@ -101,7 +101,7 @@ void app_main(void)
     snapclient_stream = snapclient_stream_init(&snapclient_cfg, board_handle->audio_hal);
 
 
-    ESP_LOGI(TAG, "[2.1] Create pcm decoder");
+    //ESP_LOGI(TAG, "[2.1] Create pcm decoder");
    // pcm_decoder_cfg_t pcm_cfg = DEFAULT_PCM_DECODER_CONFIG();
    // pcm_decoder = pcm_decoder_init(&pcm_cfg);
 
@@ -124,6 +124,7 @@ void app_main(void)
     ESP_LOGI(TAG, "[ 3 ] Start and wait for Wi-Fi network");
     esp_periph_config_t periph_cfg = DEFAULT_ESP_PERIPH_SET_CONFIG();
     esp_periph_set_handle_t set = esp_periph_set_init(&periph_cfg);
+    
     periph_wifi_cfg_t wifi_cfg = {
         .ssid = CONFIG_ESP_WIFI_SSID,
         .password = CONFIG_ESP_WIFI_PASSWORD,
@@ -153,7 +154,7 @@ void app_main(void)
     ESP_LOGI(TAG, "[ 5 ] Start audio_pipeline");
     audio_pipeline_run(pipeline);
 
-	i2s_stream_set_clk(i2s_stream_writer, 44100 , 16, 2);
+	i2s_stream_set_clk(i2s_stream_writer, 48000 , 16, 2);
 
     while (1) {
 		char source[20];

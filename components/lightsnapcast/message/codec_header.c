@@ -4,67 +4,71 @@
 #include <string.h>
 #include <buffer.h>
 #include "esp_log.h"
+#include "audio_type_def.h"
+#include "sample_format.h"
 
 static const char *TAG = "SNAPCLIENT_CODEC_HEADER";
 
-int codec_header_message_deserialize(codec_header_message_t *msg, const char *data, uint32_t size) {
-    read_buffer_t buffer;
-    size_t        s_string;
-    int           result = 0;
-
-    buffer_read_init(&buffer, data, size);
-
-    result |= buffer_read_uint32(&buffer, &s_string);
-    // Can't allocate the proper size string if we didn't read the size, so fail early
-    if (result) return 1;
-
-    msg->codec = malloc(s_string + 1); // +1 to add ending \0
-    if (!msg->codec) return 2;
-
-    result |= buffer_read_buffer(&buffer, msg->codec, s_string);
-    // Make sure the codec is a proper C string by terminating it with a null character
-    msg->codec[s_string] = '\0';
-
-    result |= buffer_read_uint32(&buffer, &(msg->size));
-    // Can't allocate the  proper size string if we didn't read the size, so fail early
-    if (result) return 1;
-
-    msg->payload = malloc(msg->size);
-    if (!msg->payload) return 2;
-
-    result |= buffer_read_buffer(&buffer, msg->payload, msg->size);
-    return result;
-}
-
-void codec_header_message_free(codec_header_message_t *msg) {
-    free(msg->codec);
-    msg->codec = NULL;
-
-    free(msg->payload);
-    msg->payload = NULL;
-}
-
 void codec_header_message_full_free(codec_header_message_full_t *msg) {
-    free(msg->codec);
-    msg->codec = NULL;
-
-    free(msg->payload);
-    msg->payload = NULL;
-
-    free(msg);
 }
 
 int codec_header_message_full_deserialize(codec_header_message_full_t *msg, const char *data) {
-    memcpy(msg, data, sizeof(codec_header_message_t));
+    uint32_t offset = 0;
+
+    memcpy(&(msg->codec_size), data + offset, sizeof(uint32_t));
+    offset += sizeof(uint32_t);
+
+    msg->codec = data + offset;
+    offset += msg->codec_size;
+
+    memcpy(&(msg->size), data + offset, sizeof(msg->size));
+    offset += sizeof(msg->size);
+
+    msg->payload = data + offset;
     return 0;
 }
 
-
 void print_codec_header_message(const codec_header_message_full_t* msg){
-    print_base_message(&msg->base);
-    ESP_LOGI(TAG, "codec: { size: %d, payload: %d, codec: %s }\n", 
+    print_base_message(msg->base);
+    ESP_LOGI(TAG, "codec: { code_size: %d, codec: %s, size: %d, payload: %p }\n", 
+        msg->codec_size,
+        msg->codec,
         msg->size, 
-        (int)msg->payload,
-        msg->codec
+        msg->payload
     );
+}
+
+
+void process_codec(codec_header_message_full_t* codec_header_message, audio_element_handle_t self)
+{
+    esp_codec_type_t codec;
+	sample_t sampleFormat = {0};
+	audio_element_info_t snap_info = {0};
+
+    if (strcmp(codec_header_message->codec, "opus") == 0) {
+        codec = ESP_CODEC_TYPE_OPUS;
+    } else if (strcmp(codec_header_message->codec, "flac") == 0) {
+        codec = ESP_CODEC_TYPE_FLAC;
+    } else if (strcmp(codec_header_message->codec, "pcm") == 0) {
+        codec = ESP_CODEC_TYPE_PCM;
+    } else if (strcmp(codec_header_message->codec, "ogg") == 0) {
+        codec = ESP_CODEC_TYPE_OGG;
+    } else {
+        ESP_LOGI(TAG, "Codec : %s not supported", codec_header_message->codec);
+        ESP_LOGI(TAG, "Change encoder codec to opus in /etc/snapserver.conf on server");
+        return ;
+    }
+
+    audio_element_set_codec_fmt(self, codec);
+    
+    sample_format_message_deserialize(&sampleFormat, codec_header_message->payload + 16);
+    print_sample_format(&sampleFormat);
+    ESP_LOGI(TAG, "sampleformat: %d:%d:%d\n", sampleFormat.rate_, sampleFormat.bits_, sampleFormat.channels_);
+
+    audio_element_getinfo(self, &snap_info);
+    snap_info.sample_rates = sampleFormat.rate_;
+    snap_info.bits         = sampleFormat.bits_;
+    snap_info.channels     = sampleFormat.channels_;
+    audio_element_setinfo(self, &snap_info);
+    audio_element_report_info(self);
 }
