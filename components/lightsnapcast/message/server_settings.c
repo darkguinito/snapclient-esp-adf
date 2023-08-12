@@ -70,7 +70,7 @@ void process_server(server_settings_message_full_t* server_settings_message, aud
 
 	audio_element_info_t snap_info = {0};
 	sample_t sampleFormat = {0};
-    ESP_LOGI(TAG, "SNAPCAST_MESSAGE_SERVER_SETTINGS (size=)");
+    ESP_LOGI(TAG, "SNAPCAST_MESSAGE_SERVER_SETTINGS");
     ESP_LOGI(TAG, "Buffer length:  %d", server_settings_message->buffer_ms);
     ESP_LOGI(TAG, "Ringbuffer size:%d", server_settings_message->buffer_ms * 48 * 4 );
     ESP_LOGI(TAG, "Latency:        %d", server_settings_message->latency);
@@ -84,8 +84,8 @@ void process_server(server_settings_message_full_t* server_settings_message, aud
     snap_info.channels     = sampleFormat.channels_;
 //
     //// Not sure it is used somewhere ? 
-    //// buffer_ms = server_settings_message->buffer_ms - server_settings_message->latency - player.latency;
-    //// snap_info.duration = buffer_ms > 0 ? buffer_ms : 0;
+    int32_t buffer_ms = server_settings_message->buffer_ms - server_settings_message->latency - 20;
+    snap_info.duration = buffer_ms > 0 ? buffer_ms : 0;
     //
     snap_info.duration = server_settings_message->buffer_ms - server_settings_message->latency;
     audio_element_setinfo(self, &snap_info);

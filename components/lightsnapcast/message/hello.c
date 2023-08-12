@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
-#include <buffer.h>
 
 static cJSON* hello_message_to_json(hello_message_t *msg) {
     cJSON *mac;

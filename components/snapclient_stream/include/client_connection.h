@@ -11,7 +11,6 @@
 #include "time_message.h"
 
 
-
 typedef struct snapclient_stream {
     esp_transport_handle_t            t;
     audio_stream_type_t               type;
@@ -27,9 +26,6 @@ typedef struct snapclient_stream {
 	struct timeval                    last_sync;
 	int                               id_counter;
 	base_message_t                    base_message;
-	// codec_header_message_t            codec_header_message;
-	// wire_chunk_message_t              wire_chunk_message;
-	// server_settings_message_t         server_settings_message;
 	time_message_full_t               time_message;
 
 	player_t                          player;
@@ -37,10 +33,7 @@ typedef struct snapclient_stream {
 
 static snapclient_stream_t *snapclient = NULL;
 
-void getMacAddress();
-
 void createMessage(base_message_t* base_message, char *in_buffer, audio_element_handle_t self, audio_hal_handle_t s_volume_handle, time_message_full_t* time_message);
-size_t getNextMessage(audio_element_handle_t self, char *in_buffer, audio_hal_handle_t s_volume_handle, bool *received);
 
 
 #endif  //__SNAPCLIENT_CLIENT_CONNECTION_H__

@@ -29,12 +29,23 @@
 #include "board.h"
 
 static const char *TAG = "SNAPCAST";
+static audio_element_handle_t i2s_stream_writer;
+static audio_element_handle_t snapclient_stream;
 
 int16_t Gain(int16_t s, int vol) {
     int32_t v = 0;
     v= (s * vol) >> 6;
     return (int16_t)(v & 0xffff);
 }
+
+// void sync_i2s(snapclient_stream_event_msg_t *msg, snapclient_stream_status_t state, void *event_ctx)
+// {
+//     if( state == SNAPCLIENT_STREAM_STATE_SYNC){
+//         ESP_LOGI(TAG, "Sync event state: %d, data: %d", state, (int)msg->data);    
+//         i2s_stream_sync_delay(i2s_stream_writer, (int)msg->data);
+//     }
+//     ESP_LOGI(TAG, "In printEvent %d", (int)msg->data);
+// }
 
 int mp3_music_volume(audio_element_handle_t el, char *buf, int len, TickType_t wait_time, void *ctx)
 {
@@ -58,8 +69,6 @@ int mp3_music_volume(audio_element_handle_t el, char *buf, int len, TickType_t w
 void app_main(void)
 {
     audio_pipeline_handle_t pipeline;
-    audio_element_handle_t i2s_stream_writer;
-    audio_element_handle_t snapclient_stream;
 
 	// setup logging
     esp_log_level_set("*", ESP_LOG_INFO);
@@ -72,7 +81,7 @@ void app_main(void)
       ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-	tcpip_adapter_init();
+    esp_netif_init();
 
 	// now setip the audio pipeline
     ESP_LOGI(TAG, "[ 1 ] Start audio codec chip");
@@ -89,6 +98,7 @@ void app_main(void)
 	snapclient_cfg.port   = CONFIG_SNAPSERVER_PORT;
 	snapclient_cfg.host   = CONFIG_SNAPSERVER_HOST;
 	snapclient_cfg.player.latency = 20;
+//    snapclient_cfg.event_handler = (void*)sync_i2s;
     snapclient_stream = snapclient_stream_init(&snapclient_cfg, board_handle->audio_hal);
 
 
@@ -100,7 +110,10 @@ void app_main(void)
     ESP_LOGI(TAG, "[2.3] Register all elements to audio pipeline");
     audio_pipeline_register(pipeline, snapclient_stream, "snapclient");
     audio_pipeline_register(pipeline, i2s_stream_writer, "i2s");
+
+#ifdef CONFIG_MY_BOARD_V1_0
     audio_element_set_write_cb(i2s_stream_writer, mp3_music_volume, (void*)board_handle);
+#endif 
 
     ESP_LOGI(TAG, "[2.4] Link it together");
 
@@ -235,10 +248,12 @@ void app_main(void)
             continue;
         }
 
+        ESP_LOGI(TAG, "[ X ] info type: %d, src %p, data %d ", msg.source_type, msg.source, (int)msg.data );
+        if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.source == (void *) snapclient_stream ) {
+            ESP_LOGI(TAG, "[ X ] Synchro asked!");
+        }
         /* Stop when the last pipeline element (i2s_stream_writer in this case) receives stop event */
-        if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.source == (void *) i2s_stream_writer
-            && msg.cmd == AEL_MSG_CMD_REPORT_STATUS
-            && (((int)msg.data == AEL_STATUS_STATE_STOPPED) || ((int)msg.data == AEL_STATUS_STATE_FINISHED))) {
+        if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.source == (void *) i2s_stream_writer && msg.cmd == AEL_MSG_CMD_REPORT_STATUS && (((int)msg.data == AEL_STATUS_STATE_STOPPED) || ((int)msg.data == AEL_STATUS_STATE_FINISHED))) {
 			ESP_LOGI(TAG, "[ X ] i2s wants to stop!");
             //break;
         }

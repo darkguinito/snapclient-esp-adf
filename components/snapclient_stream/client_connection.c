@@ -11,7 +11,6 @@
 #include "time_message.h"
 
 #include "esp_transport_tcp.h"
-#include "controller.h"
 
 static const char *TAG = "SNAPCLIENT_CLIENT_CONNECTION";
 base_message_t base_message_;
@@ -35,6 +34,14 @@ void createMessage(base_message_t* message, char *in_buffer, audio_element_handl
             wire_chunk_message_full_t chunk = { message, { 0, 0}, 0, NULL};
 			result = wire_chunk_message_full_deserialize(&chunk, in_buffer);
            // print_wire_chunk(&chunk);
+            //struct timeval now;
+            //gettimeofday(&now, NULL);
+            //int diff = (int)now.tv_usec - chunk.timestamp.usec;
+            chunk.timestamp.usec += time_message->latency.usec;
+            //chunk.size += (diff / 40000);
+            //int delta = (diff / 20000);
+            //chunk.size += (diff / 20000);
+            //ESP_LOGI(TAG, "Timestamp: %d, %d Now %d, %d, diff %d, size %d, delta %d, Latency %d, %d", chunk.timestamp.sec, chunk.timestamp.usec, (int)now.tv_sec, (int)now.tv_usec, diff, chunk.size, delta, time_message->latency.sec, time_message->latency.usec);
             process_wire(&chunk, self);
             break;
         }
@@ -50,6 +57,10 @@ void createMessage(base_message_t* message, char *in_buffer, audio_element_handl
             ESP_LOGD(TAG, "Deserializeing time message.\n");            
             memcpy(&time_message->base, message, sizeof(base_message_t));
             memcpy(&time_message->latency, in_buffer, sizeof(tv_t));
+            struct timeval trx;
+            trx.tv_sec  = time_message->base.sent.sec - time_message->latency.sec;
+            trx.tv_usec = time_message->base.sent.usec - time_message->latency.usec;
+            settimeofday(&trx, NULL);
             //print_time_full_message(time_message);
             break;
         }

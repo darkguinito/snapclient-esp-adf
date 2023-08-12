@@ -11,6 +11,7 @@
 typedef enum {
     SNAPCLIENT_STREAM_STATE_NONE,
     SNAPCLIENT_STREAM_STATE_CONNECTED,
+    SNAPCLIENT_STREAM_STATE_SYNC,
 } snapclient_stream_status_t;
 
 

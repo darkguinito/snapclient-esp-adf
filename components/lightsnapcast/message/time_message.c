@@ -1,6 +1,5 @@
 #include "time_message.h"
 
-#include <buffer.h>
 #include <string.h>
 #include "esp_log.h"
 

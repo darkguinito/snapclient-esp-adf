@@ -4,7 +4,6 @@
 #include <stddef.h>
 
 #include "sample_format.h"
-#include "player/pcm_device.h"
 
 
 typedef enum{
@@ -34,7 +33,6 @@ typedef struct player_s{
     char*             player_name;
     char*             parameter;
     int               latency;
-    pcm_device_t      pcm_device;
     sample_t          sample_format;
     sharing_mode_e    sharing_mode;
     mixer_t           mixer;

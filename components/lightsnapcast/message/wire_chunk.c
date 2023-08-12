@@ -1,6 +1,5 @@
 #include "wire_chunk.h"
 
-#include <buffer.h>
 #include <stdlib.h>
 #include <string.h>
 #include "esp_log.h"

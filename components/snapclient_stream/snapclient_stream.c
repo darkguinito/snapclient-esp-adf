@@ -17,6 +17,7 @@ static const char *TAG = "SNAPCLIENT_STREAM";
 
 static audio_hal_handle_t s_volume_handle;
 static TimerHandle_t      send_time_tm_handle;
+static audio_element_handle_t el;
 
 static int _get_socket_error_code_reason(char *str, int sockfd)
 {
@@ -34,6 +35,22 @@ static int _get_socket_error_code_reason(char *str, int sockfd)
     }
     return result;
 }
+
+static esp_err_t _dispatch_event(audio_element_handle_t el, snapclient_stream_t *snapclient, void *data, int len, snapclient_stream_status_t state) 
+{
+	ESP_LOGI(TAG, "Begin Send event");
+    if (el && snapclient && snapclient->hook) {
+        snapclient_stream_event_msg_t msg = { 0 };
+        msg.data     = data;
+        msg.data_len = len;
+        msg.sock_fd  = snapclient->t;
+        msg.source   = el;
+		ESP_LOGI(TAG, "Send event");
+        return snapclient->hook(&msg, state, snapclient->ctx);
+    }
+    return ESP_FAIL;
+}
+
 
 static void send_time_timer_cb(TimerHandle_t xTimer)
 {
@@ -62,19 +79,7 @@ static void send_time_timer_cb(TimerHandle_t xTimer)
 	message.base.size      = TIME_MESSAGE_SIZE;
 
 	esp_transport_write(snapclient->t, (const char*)(&message), sizeof(time_message_full_t), snapclient->timeout_ms);
-}
-
-static esp_err_t _dispatch_event(audio_element_handle_t el, snapclient_stream_t *snapclient, void *data, int len, snapclient_stream_status_t state) 
-{
-    if (el && snapclient && snapclient->hook) {
-        snapclient_stream_event_msg_t msg = { 0 };
-        msg.data     = data;
-        msg.data_len = len;
-        msg.sock_fd  = snapclient->t;
-        msg.source   = el;
-        return snapclient->hook(&msg, state, snapclient->ctx);
-    }
-    return ESP_FAIL;
+	//_dispatch_event(el, snapclient, 200, 0, SNAPCLIENT_STREAM_STATE_SYNC);
 }
 
 static esp_err_t _snapclient_open(audio_element_handle_t self)
@@ -300,8 +305,6 @@ audio_element_handle_t snapclient_stream_init(snapclient_stream_cfg_t *config, a
 	ESP_LOGI(TAG, "snapclient_stream_init");
 
 	audio_element_cfg_t    cfg = DEFAULT_AUDIO_ELEMENT_CONFIG();
-	audio_element_handle_t el;
-
 	s_volume_handle = (audio_hal_handle_t) volume_handle;
 
     cfg.open         = _snapclient_open;

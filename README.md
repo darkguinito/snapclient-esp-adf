@@ -13,3 +13,17 @@ implementation made by
 
 For now, I sometimes "work" using flac or pcm codec for the snapcast stream,
 and have no latency control or time synchronization.
+
+## Build
+
+Start setting idf env 
+
+```bash
+get_idf
+```
+
+Then build and flas package
+
+```bash
+idf.py -p /dev/ttyUSB0 build flash monitor
+```
